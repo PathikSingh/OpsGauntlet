@@ -1,0 +1,13 @@
+task_id,title,difficulty,terminal_outcome,steps,total_reward,max_reward,reward_ratio,normalized_score
+rollback_alpha,Rollback a broken canary release,easy,success,4,24.4,20.0,1.22,1.0
+hotfix_ci_beta,Fix-forward a blocked release,easy,success,8,25.6,25.0,1.024,1.0
+public_payments_incident,Recover a customer-facing payments incident,medium,success,7,34.1,28.0,1.218,1.0
+auth_fix_forward,Fix-forward a security-sensitive auth release,medium,success,15,48.5,35.0,1.386,1.0
+schema_migration_fix,Repair a release blocked by schema migration failure,medium,success,9,28.3,25.0,1.132,1.0
+customer_timeline_hard,Run a full incident lifecycle with postmortem hygiene,hard,success,10,42.2,38.0,1.111,1.0
+checkout_fix_forward_major,Contain and fix-forward a checkout incident,hard,success,16,51.2,40.0,1.28,1.0
+orders_pause_and_rollback,Pause rollout and rollback an orders release,medium,success,6,29.8,28.0,1.064,1.0
+database_rollback_simple,Rollback a database-impacting release,easy,success,4,24.4,20.0,1.22,1.0
+api_gateway_fix_forward,Fix-forward a broken API gateway release,medium,success,9,28.3,28.0,1.011,1.0
+notification_service_sev2,Handle a sev2 notification service incident,medium,success,7,34.1,28.0,1.218,1.0
+ml_pipeline_hard,Recover a broken ML inference pipeline with full incident lifecycle,hard,success,10,42.2,40.0,1.055,1.0
