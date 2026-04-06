@@ -32,7 +32,7 @@ def root() -> HTMLResponse:
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>OpsGauntlet</title>
+            <title>Ops Gauntlet</title>
             <style>
               :root {
                 color-scheme: light;
@@ -230,7 +230,7 @@ def root() -> HTMLResponse:
               <section class="hero">
                 <div class="panel hero-copy">
                   <div class="eyebrow">OpenEnv Benchmark</div>
-                  <h1>OpsGauntlet</h1>
+                  <h1>Ops Gauntlet</h1>
                   <p class="lead">
                     A release-engineering benchmark for agents that must diagnose incidents, choose rollback versus
                     fix-forward, validate CI, deploy safely, verify recovery, and close the loop with incident hygiene.

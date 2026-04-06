@@ -22,3 +22,9 @@ dist/
 
 .DS_Store
 Thumbs.db
+
+# Keep internal planning notes local only
+SUBMISSION.md
+PITCH.md
+PROJECT_WALKTHROUGH.md
+FINAL_PROJECT_GUIDE.md

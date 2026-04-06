@@ -1,112 +1,17 @@
-# Gauntlet
+# Ops Gauntlet
 
-Gauntlet is an OpenEnv-compatible benchmark environment for evaluating and demonstrating agent behavior during release failures, production incidents, rollback decisions, hotfix workflows, and stakeholder communication.
+Ops Gauntlet is an OpenEnv-compatible benchmark for evaluating and demonstrating agent behavior during release failures, production incidents, rollback decisions, hotfix workflows, and stakeholder communication.
 
-The project is designed around realistic ReleaseOps decision-making rather than toy API tasks. An agent is expected to diagnose the problem, choose a safe remediation path, validate recovery, and complete the operational follow-through.
+The environment focuses on operational judgment, not just API sequencing. An agent is expected to diagnose the issue, choose a safe remediation path, validate recovery, and complete the follow-through required in a real ReleaseOps setting.
 
-## Why This Project Exists
-
-Modern AI agents increasingly interact with operational systems such as CI pipelines, deployment controls, telemetry dashboards, incident tooling, and customer-facing status surfaces. In practice, many failures are not syntax failures. They are judgment failures:
-
-- acting before diagnosing
-- choosing an unsafe remediation strategy
-- promoting an unhealthy canary
-- forgetting required communications
-- closing an incident before service health is actually restored
-
-Gauntlet focuses on these higher-value operational behaviors.
-
-## What Gauntlet Evaluates
-
-- diagnosis before action
-- rollback versus fix-forward decision quality
-- safe use of containment controls
-- CI-aware remediation workflows
-- canary validation before promotion
-- recovery verification
-- complete incident hygiene and communication
-
-## Scenario Families
-
-- `rollback-first incidents`
-- `fix-forward hotfixes`
-- `public customer incidents`
-- `containment-first incidents`
-- `verified recovery`
-
-## Core Tool Surface
-
-The environment exposes a realistic operational toolset, including:
-
-- `inspect_release_status`
-- `inspect_service_metrics`
-- `inspect_ci_failure`
-- `pause_auto_rollout`
-- `create_incident_ticket`
-- `update_incident_ticket`
-- `create_hotfix_branch`
-- `apply_hotfix`
-- `trigger_ci`
-- `check_ci_status`
-- `deploy_canary`
-- `promote_canary`
-- `rollback_release`
-- `verify_recovery`
-- `notify_slack`
-- `update_status_page`
-- `schedule_postmortem`
-
-## Project Structure
-
-```text
-.
-|-- server/
-|   |-- app.py
-|   |-- environment.py
-|   |-- grader.py
-|   |-- task_bank.py
-|   `-- tool_registry.py
-|-- tests/
-|   `-- test_environment.py
-|-- demo_runner.py
-|-- inference.py
-|-- benchmark_report.py
-|-- openenv.yaml
-`-- pyproject.toml
-```
-
-## Quick Start
-
-### Requirements
-
-- Python 3.10+
-- `pip` or another Python package manager
-
-### Install
+## Quickstart
 
 ```bash
 pip install -e .[dev]
-```
-
-### Run the test suite
-
-```bash
 pytest -q
-```
-
-### Validate the environment
-
-```bash
 openenv validate .
-```
-
-### Start the local API server
-
-```bash
 python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
 ```
-
-## Example Usage
 
 ```python
 from opsgauntlet import OpsGauntletEnv, OpsGauntletAction, ToolCallRequest
@@ -127,38 +32,114 @@ with env:
     print(result.reward, result.observation.last_tool_result.summary)
 ```
 
-## Demo Commands
+## Why This Project Matters
+
+Modern coding agents increasingly interact with deployment systems, CI pipelines, telemetry dashboards, incident tooling, and customer-facing status surfaces. They often fail not because they lack syntax, but because they:
+
+- skip diagnosis
+- choose unsafe remediation
+- promote unhealthy canaries
+- miss required communications
+- close incidents before service health is actually restored
+
+Ops Gauntlet trains and evaluates those higher-value operational behaviors.
+
+## ReleaseOps Capabilities
+
+Instead of solving a generic API-order puzzle, the agent operates inside a coherent ReleaseOps environment:
+
+- inspect telemetry before acting
+- choose rollback versus fix-forward
+- patch the right failure cause
+- rerun CI safely
+- deploy via canary
+- communicate internally and externally
+- close out incident workflow cleanly
+
+## Scenario Families
+
+- `rollback-first incidents`: a bad release should be reverted quickly and safely
+- `fix-forward hotfixes`: rollback is not sufficient; the agent must patch, test, canary, and promote
+- `public customer incidents`: service recovery must be paired with ticketing and status-page hygiene
+- `containment-first incidents`: the agent is rewarded for pausing rollout before remediation
+- `verified recovery`: the agent must confirm healthy telemetry before closing the loop
+
+## Professional Features
+
+- task-local toolsets so the agent must reason inside realistic operational scope
+- branching outcomes between rollback and fix-forward strategies
+- containment controls such as rollout pause before deeper remediation
+- recovery verification before customer-facing closure
+- penalties for unsafe behavior like premature incident closure
+- benchmark-style scenarios spanning easy, medium, and hard operational chains
+
+## Core Tools
+
+- `inspect_release_status`
+- `inspect_service_metrics`
+- `inspect_ci_failure`
+- `pause_auto_rollout`
+- `create_incident_ticket`
+- `update_incident_ticket`
+- `create_hotfix_branch`
+- `apply_hotfix`
+- `trigger_ci`
+- `check_ci_status`
+- `deploy_canary`
+- `promote_canary`
+- `rollback_release`
+- `verify_recovery`
+- `notify_slack`
+- `update_status_page`
+- `schedule_postmortem`
+
+## Local Usage
 
 ```bash
 python demo_runner.py public_payments_incident
 python demo_runner.py checkout_fix_forward_major
+python inference.py --scope all
+python benchmark_report.py
 ```
 
-Suggested demo flow:
+## Reward Philosophy
 
-- show one rollback-first scenario
-- show one fix-forward scenario
-- explain what the agent observed
-- explain why the chosen remediation path was rewarded or penalized
+The environment does not reward tool spam or long reasoning text. It rewards:
+- correct diagnosis
+- safe operational sequencing
+- appropriate remediation strategy
+- healthy final service state
+- complete incident hygiene
+
+Unsafe or premature actions such as promoting an unhealthy canary are penalized.
+
+## Benchmark Focus
+
+This project is designed as a serious benchmark rather than a toy workflow simulator. It emphasizes:
+- long-horizon decision making
+- delayed operational outcomes
+- branching remediation strategies
+- reusable task structure for agent training and eval
 
 ## Baseline Agent
 
-This repository includes a deterministic scripted baseline for validation and demonstration:
+Round 1 does not require you to train a model to make the environment valid. The required artifact is the environment itself.
+
+For testing and demos, this repo includes a deterministic scripted baseline:
 
 ```bash
 python inference.py --scope all
 python inference.py --task-id checkout_fix_forward_major
 ```
 
-This is useful for:
+This baseline is useful for:
+- proving that the environment is solvable end to end
+- showing judges the expected operational flow
+- giving you a no-LLM demo path for Round 1
 
-- proving the environment is solvable end to end
-- demonstrating expected tool sequencing
-- producing benchmark results without relying on an external LLM agent
+## Benchmark Report
 
-## Benchmark Reporting
-
-Generate benchmark summaries with:
+This repo also includes a benchmark score report system:
 
 ```bash
 python benchmark_report.py
@@ -168,39 +149,44 @@ python benchmark_report.py --csv-out benchmark.csv --md-out benchmark.md
 python benchmark_report.py --compare-random
 ```
 
-The reporting flow supports:
-
+The report includes:
 - overall success rate
 - average reward
 - average normalized score
-- per-difficulty summaries
-- per-task score breakdowns
-- scripted-versus-random comparisons
+- per-difficulty summary
+- per-task score breakdown
+- optional CSV export
+- optional Markdown export
+- optional scripted-vs-random comparison
 
-## Submission Support
+Normalized score is computed against each task's `max_reward` and capped to the `0.0-1.0` range for clean benchmark reporting.
 
-Helper scripts included in the repository:
+## Demo Flow
+
+For a confident hackathon demo, walk one rollback scenario and one fix-forward scenario:
+- rollback demo: `public_payments_incident`
+- fix-forward demo: `checkout_fix_forward_major`
+
+You can run the scripted demos directly:
 
 ```bash
-powershell -ExecutionPolicy Bypass -File .\submit_check.ps1
-powershell -ExecutionPolicy Bypass -File .\push_space.ps1 -RepoId YOUR_HF_USERNAME/opsgauntlet
+python demo_runner.py public_payments_incident
+python demo_runner.py checkout_fix_forward_major
 ```
 
-Supporting documents:
-
-- `SUBMISSION.md`
-- `PITCH.md`
-- `DEMO.md`
-- `PROJECT_WALKTHROUGH.md`
-- `FINAL_PROJECT_GUIDE.md`
-
+Use the observation timeline to explain:
+- what the agent knew
+- why it chose containment / rollback / patching
+- how the environment scored safe versus unsafe behavior
+ 
 ## Development Notes
 
 - package name: `openenv-opsgauntlet`
 - runtime entrypoint: `server.app:app`
-- test file: `tests/test_environment.py`
+- test suite: `tests/test_environment.py`
 - OpenEnv config: `openenv.yaml`
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See `LICENSE` for details.
+

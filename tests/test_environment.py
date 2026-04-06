@@ -180,7 +180,7 @@ def test_root_page_and_robots_are_served():
     client = TestClient(app)
     root = client.get("/")
     assert root.status_code == 200
-    assert "OpsGauntlet" in root.text
+    assert "Ops Gauntlet" in root.text
 
     robots = client.get("/robots.txt")
     assert robots.status_code == 200
