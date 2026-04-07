@@ -2,6 +2,7 @@
 
 import sys
 import tempfile
+import importlib
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from inference import run_episode
+import inference
 from benchmark_report import (
     collect_benchmark_results,
     collect_comparison_report,
@@ -146,6 +148,16 @@ def test_scripted_baseline_solves_all_tasks():
     outcomes = [run_episode(task.task_id, verbose=False) for task in TASK_BANK]
     assert all(item["terminal_outcome"] == "success" for item in outcomes)
     assert all(0.0 <= item["score"] <= 1.0 for item in outcomes)
+
+
+def test_auto_policy_defaults_to_scripted_without_api_key(monkeypatch):
+    monkeypatch.setattr(inference, "API_KEY", None)
+    assert inference._resolve_policy("auto") == "scripted"
+
+
+def test_auto_policy_prefers_proxy_when_api_key_exists(monkeypatch):
+    monkeypatch.setattr(inference, "API_KEY", "test-key")
+    assert inference._resolve_policy("auto") == "proxy_scripted"
 
 
 def test_new_tasks_exist_and_can_reset():

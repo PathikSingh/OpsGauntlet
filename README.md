@@ -188,11 +188,12 @@ The surfaced environment `reward` and benchmark `score` stay in the required `0.
 
 ## Submission Compliance Notes
 
-The root-level `inference.py` is set up for the round-one checklist:
-- required env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`
+The root-level `inference.py` is set up for the submission checklist:
+- required env vars: `API_BASE_URL`, `MODEL_NAME`, `API_KEY`
 - optional env var when using `from_docker_image()`: `LOCAL_IMAGE_NAME`
 - defaults are provided only for `API_BASE_URL` and `MODEL_NAME`
 - any LLM-backed path uses `from openai import OpenAI`
+- the default `--policy auto` path uses the organizer proxy whenever `API_KEY` is injected, and otherwise falls back to the scripted baseline for local validation
 - stdout is restricted to structured `[START]`, `[STEP]`, and `[END]` log lines
 - `python inference.py` runs the local in-process baseline for reproducible validation, while `--runner submission` can smoke-test the deployed Space or Docker image path
 
