@@ -1,14 +1,35 @@
-"""Baseline scripted agent for OpsGauntlet."""
+"""Round-one inference runner for OpsGauntlet."""
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable
 
-from opsgauntlet.models import OpsGauntletAction, OpsGauntletObservation, ToolCallRequest
-from opsgauntlet.server.environment import OpsGauntletEnvironment
-from opsgauntlet.server.task_bank import TASK_BANK, Task, get_task_by_id
+from openai import OpenAI
+from openenv.core.utils import run_async_safely
+
+try:
+    from opsgauntlet.client import OpsGauntletEnv
+    from opsgauntlet.models import OpsGauntletAction, OpsGauntletObservation, ToolCallRequest
+    from opsgauntlet.server.environment import OpsGauntletEnvironment
+    from opsgauntlet.server.task_bank import TASK_BANK, Task, get_task_by_id
+except ImportError:  # pragma: no cover
+    from client import OpsGauntletEnv  # type: ignore
+    from models import OpsGauntletAction, OpsGauntletObservation, ToolCallRequest  # type: ignore
+    from server.environment import OpsGauntletEnvironment  # type: ignore
+    from server.task_bank import TASK_BANK, Task, get_task_by_id  # type: ignore
+
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "openai/gpt-4.1-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+# Optional - if you use from_docker_image():
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+
+ENV_BASE_URL = "https://pathiksingh-ops-gauntlet.hf.space"
 
 
 @dataclass
@@ -284,46 +305,183 @@ class ScriptedBaselineAgent:
         )
 
 
-def run_episode(task_id: str, seed: int = 7, verbose: bool = True) -> Dict[str, Any]:
-    """Run the baseline policy against a single task and return the outcome."""
+class OpenAIBackedAgent:
+    """Optional OpenAI-compatible policy for manual evaluation."""
 
-    env = OpsGauntletEnvironment()
-    agent = ScriptedBaselineAgent()
-    agent.reset()
+    def __init__(self) -> None:
+        if not HF_TOKEN:
+            raise RuntimeError("HF_TOKEN is required when running inference.py with --policy openai.")
+        self._client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-    observation = env.reset(seed=seed, task_id=task_id)
-    total_reward = 0.0
+    def reset(self) -> None:
+        return None
 
-    if verbose:
-        print(f"\n=== {observation.title} ({task_id}) ===")
-        print(observation.briefing)
+    def act(self, observation: OpsGauntletObservation) -> OpsGauntletAction:
+        response = self._client.chat.completions.create(
+            model=MODEL_NAME,
+            temperature=0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a safe release-operations agent. Return exactly one JSON object with "
+                        "keys tool_name, parameters, and reasoning. Only choose from the available tools."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "task_id": observation.task_id,
+                            "briefing": observation.briefing,
+                            "available_tools": observation.available_tools,
+                            "tool_schemas": observation.tool_schemas,
+                            "service_snapshot": observation.service_snapshot.model_dump(),
+                            "signal_snapshot": observation.signal_snapshot.model_dump(),
+                            "completed_objectives": observation.completed_objectives,
+                            "timeline": observation.timeline,
+                            "hint": observation.hint,
+                        },
+                        indent=2,
+                    ),
+                },
+            ],
+        )
+        content = response.choices[0].message.content or "{}"
+        payload = json.loads(content)
+        return OpsGauntletAction(
+            tool_call=ToolCallRequest(
+                tool_name=payload["tool_name"],
+                parameters=payload.get("parameters", {}),
+                reasoning=payload.get("reasoning", "Model-selected action."),
+            )
+        )
+
+
+def _emit(event: str, payload: Dict[str, Any], enabled: bool) -> None:
+    if enabled:
+        print(f"[{event}] {json.dumps(payload)}")
+
+
+def _build_agent(policy: str) -> ScriptedBaselineAgent | OpenAIBackedAgent:
+    if policy == "scripted":
+        return ScriptedBaselineAgent()
+    if policy == "openai":
+        return OpenAIBackedAgent()
+    raise ValueError(f"Unknown policy: {policy}")
+
+
+def _connect_remote_env() -> Any:
+    if LOCAL_IMAGE_NAME:
+        return run_async_safely(OpsGauntletEnv.from_docker_image(LOCAL_IMAGE_NAME)).sync()
+    return OpsGauntletEnv(base_url=ENV_BASE_URL).sync()
+
+
+def _execute_episode(
+    reset_fn: Callable[[], OpsGauntletObservation],
+    step_fn: Callable[[OpsGauntletAction], OpsGauntletObservation],
+    task_id: str,
+    agent: ScriptedBaselineAgent | OpenAIBackedAgent,
+    verbose: bool,
+    policy: str,
+) -> Dict[str, Any]:
+    observation = reset_fn()
+    _emit(
+        "START",
+        {
+            "task_id": task_id,
+            "policy": policy,
+            "max_steps": observation.max_steps,
+            "available_tools": observation.available_tools,
+        },
+        verbose,
+    )
 
     while not observation.done and observation.step_number < observation.max_steps:
         action = agent.act(observation)
-        observation = env.step(action)
-        total_reward += observation.reward or 0.0
-        if verbose:
-            result = observation.last_tool_result
-            print(f"[{observation.step_number}] {action.tool_call.tool_name}")
-            print(f"  reward: {observation.reward}")
-            if result is not None:
-                print(f"  success: {result.success}")
-                print(f"  summary: {result.summary}")
-            print(f"  objectives: {', '.join(observation.completed_objectives) or 'none'}")
+        observation = step_fn(action)
+        _emit(
+            "STEP",
+            {
+                "task_id": task_id,
+                "step": observation.step_number,
+                "tool_name": action.tool_call.tool_name,
+                "success": None if observation.last_tool_result is None else observation.last_tool_result.success,
+                "score": round(float(observation.reward or 0.0), 3),
+                "raw_step_reward": observation.metadata.get("raw_step_reward"),
+                "done": observation.done,
+                "terminal_outcome": observation.metadata.get("terminal_outcome", "in_progress"),
+            },
+            verbose,
+        )
 
     outcome = observation.metadata.get("terminal_outcome", "unknown")
-    if verbose:
-        print(f"Terminal outcome: {outcome}")
-        print(f"Total reward: {round(total_reward, 2)}")
-
+    score = round(float(observation.metadata.get("episode_score", observation.reward or 0.0)), 3)
+    raw_total_reward = round(float(observation.metadata.get("raw_total_reward", 0.0)), 2)
+    _emit(
+        "END",
+        {
+            "task_id": task_id,
+            "policy": policy,
+            "terminal_outcome": outcome,
+            "steps": observation.step_number,
+            "score": score,
+            "raw_total_reward": raw_total_reward,
+        },
+        verbose,
+    )
     return {
         "task_id": task_id,
         "title": observation.title,
         "difficulty": observation.difficulty,
         "terminal_outcome": outcome,
-        "total_reward": round(total_reward, 2),
+        "score": score,
+        "total_reward": raw_total_reward,
+        "raw_total_reward": raw_total_reward,
         "steps": observation.step_number,
     }
+
+
+def run_episode(
+    task_id: str,
+    seed: int = 7,
+    verbose: bool = True,
+    policy: str = "scripted",
+) -> Dict[str, Any]:
+    """Run a local in-process episode for tests and benchmark scripts."""
+
+    env = OpsGauntletEnvironment()
+    agent = _build_agent(policy)
+    agent.reset()
+    return _execute_episode(
+        reset_fn=lambda: env.reset(seed=seed, task_id=task_id),
+        step_fn=lambda action: env.step(action),
+        task_id=task_id,
+        agent=agent,
+        verbose=verbose,
+        policy=policy,
+    )
+
+
+def run_submission_episode(
+    task_id: str,
+    seed: int = 7,
+    verbose: bool = True,
+    policy: str = "scripted",
+) -> Dict[str, Any]:
+    """Run the submission flow against the Space or local Docker image."""
+
+    agent = _build_agent(policy)
+    agent.reset()
+    with _connect_remote_env() as env:
+        return _execute_episode(
+            reset_fn=lambda: env.reset(seed=seed, task_id=task_id).observation,
+            step_fn=lambda action: env.step(action).observation,
+            task_id=task_id,
+            agent=agent,
+            verbose=verbose,
+            policy=policy,
+        )
 
 
 def iter_task_ids(scope: str, task_id: str | None) -> Iterable[str]:
@@ -340,7 +498,7 @@ def iter_task_ids(scope: str, task_id: str | None) -> Iterable[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the OpsGauntlet scripted baseline.")
+    parser = argparse.ArgumentParser(description="Run the OpsGauntlet submission inference flow.")
     parser.add_argument("--task-id", help="Run a single task by id.")
     parser.add_argument(
         "--scope",
@@ -349,17 +507,28 @@ def main() -> None:
         help="Task difficulty bucket to run when --task-id is omitted.",
     )
     parser.add_argument("--seed", type=int, default=7, help="Deterministic seed for reset().")
-    parser.add_argument("--quiet", action="store_true", help="Suppress per-step logs.")
+    parser.add_argument(
+        "--policy",
+        choices=["scripted", "openai"],
+        default="scripted",
+        help="Use the deterministic baseline or an OpenAI-compatible model policy.",
+    )
+    parser.add_argument(
+        "--runner",
+        choices=["local", "submission"],
+        default="local",
+        help="Run locally for reproducible validation, or against the deployed/Docker environment for smoke testing.",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Accepted for validator compatibility; stdout remains limited to structured [START]/[STEP]/[END] logs.",
+    )
     args = parser.parse_args()
 
-    outcomes = [run_episode(task_id, seed=args.seed, verbose=not args.quiet) for task_id in iter_task_ids(args.scope, args.task_id)]
-    successes = sum(1 for item in outcomes if item["terminal_outcome"] == "success")
-    print(f"\nSolved {successes}/{len(outcomes)} task(s).")
-    for item in outcomes:
-        print(
-            f"- {item['task_id']}: {item['terminal_outcome']} "
-            f"(difficulty={item['difficulty']}, steps={item['steps']}, reward={item['total_reward']})"
-        )
+    runner = run_episode if args.runner == "local" else run_submission_episode
+    for task_id in iter_task_ids(args.scope, args.task_id):
+        runner(task_id, seed=args.seed, verbose=True, policy=args.policy)
 
 
 if __name__ == "__main__":

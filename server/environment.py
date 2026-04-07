@@ -48,6 +48,7 @@ class OpsGauntletEnvironment(
         self._world: Dict[str, Any] = {}
         self._completed_objectives: list[str] = []
         self._last_tool_result: Optional[ToolResult] = None
+        self._raw_total_reward: float = 0.0
 
     def reset(
         self,
@@ -73,6 +74,7 @@ class OpsGauntletEnvironment(
         )
         self._completed_objectives = []
         self._last_tool_result = None
+        self._raw_total_reward = 0.0
         self._world = self._build_world(self._task)
 
         return self._make_observation(reward=0.0, done=False)
@@ -118,14 +120,19 @@ class OpsGauntletEnvironment(
             step_number=self._state.step_count,
         )
         self._completed_objectives = grade.completed_objectives
+        self._raw_total_reward += grade.reward
+        episode_score = self._normalized_episode_score()
 
-        observation = self._make_observation(reward=grade.reward, done=grade.done)
+        observation = self._make_observation(reward=episode_score, done=grade.done)
         observation.metadata["terminal_outcome"] = grade.terminal_outcome
         observation.metadata["task_strategy"] = self._task.strategy
         observation.metadata["service_recovered"] = self._world["service_recovered"]
         observation.metadata["unsafe_actions"] = list(self._world["unsafe_actions"])
         observation.metadata["auto_rollout_paused"] = self._world["auto_rollout_paused"]
         observation.metadata["recovery_verified"] = self._world["recovery_verified"]
+        observation.metadata["raw_step_reward"] = grade.reward
+        observation.metadata["raw_total_reward"] = round(self._raw_total_reward, 2)
+        observation.metadata["episode_score"] = episode_score
         return observation
 
     @property
@@ -217,3 +224,10 @@ class OpsGauntletEnvironment(
         status = "ok" if result.success else "failed"
         line = f"Step {self._state.step_count}: {result.tool_name} -> {status} ({result.summary})"
         self._world["timeline"].append(line)
+
+    def _normalized_episode_score(self) -> float:
+        assert self._task is not None
+        if self._task.max_reward <= 0:
+            return 0.0
+        normalized = self._raw_total_reward / self._task.max_reward
+        return round(max(0.0, min(normalized, 1.0)), 3)

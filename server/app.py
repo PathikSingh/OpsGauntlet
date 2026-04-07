@@ -1,11 +1,28 @@
 """FastAPI app for OpsGauntlet."""
 
+from __future__ import annotations
+
+from threading import RLock
+from typing import Any
+
+from fastapi import HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as exc:  # pragma: no cover
     raise ImportError("openenv-core is required to run this environment.") from exc
+
+try:
+    from openenv.core.env_server.http_server import (
+        ResetRequest,
+        ResetResponse,
+        StepRequest,
+        StepResponse,
+        deserialize_action,
+    )
+except Exception as exc:  # pragma: no cover
+    raise ImportError("openenv-core HTTP server helpers are required.") from exc
 
 try:
     from ..models import OpsGauntletAction, OpsGauntletObservation
@@ -22,6 +39,88 @@ app = create_app(
     env_name="opsgauntlet",
     max_concurrent_envs=4,
 )
+
+_http_env_lock = RLock()
+_http_env: OpsGauntletEnvironment | None = None
+
+
+def _serialize_observation(observation: OpsGauntletObservation) -> dict[str, Any]:
+    """Preserve metadata for plain HTTP clients and validator-style calls."""
+
+    payload = observation.model_dump(exclude={"reward", "done"})
+    return {
+        "observation": payload,
+        "reward": observation.reward,
+        "done": observation.done,
+    }
+
+
+def _set_http_env(env: OpsGauntletEnvironment | None) -> OpsGauntletEnvironment | None:
+    global _http_env
+    previous = _http_env
+    _http_env = env
+    return previous
+
+
+def _drop_generated_route(path: str, methods: set[str]) -> None:
+    app.router.routes = [
+        route
+        for route in app.router.routes
+        if not (
+            getattr(route, "path", None) == path
+            and methods.issubset(getattr(route, "methods", set()))
+        )
+    ]
+
+
+for route_path, route_methods in (
+    ("/reset", {"POST"}),
+    ("/step", {"POST"}),
+    ("/state", {"GET"}),
+):
+    _drop_generated_route(route_path, route_methods)
+
+
+@app.post("/reset", response_model=ResetResponse, tags=["Environment Control"])
+def reset(request: ResetRequest) -> ResetResponse:
+    """Stateful HTTP reset for validator-friendly sequential calls."""
+
+    env = OpsGauntletEnvironment()
+    kwargs = request.model_dump(exclude_unset=True)
+    observation = env.reset(**kwargs)
+    with _http_env_lock:
+        previous = _set_http_env(env)
+    if previous is not None:
+        previous.close()
+    return ResetResponse(**_serialize_observation(observation))
+
+
+@app.post("/step", response_model=StepResponse, tags=["Environment Control"])
+def step(request: StepRequest) -> StepResponse:
+    """Advance the active HTTP episode created by /reset."""
+
+    action = deserialize_action(request.action, OpsGauntletAction)
+    kwargs = request.model_dump(exclude_unset=True, exclude={"action"})
+    with _http_env_lock:
+        if _http_env is None:
+            raise HTTPException(status_code=400, detail="Environment must be reset before step().")
+        observation = _http_env.step(action, **kwargs)
+    return StepResponse(**_serialize_observation(observation))
+
+
+@app.get("/state", tags=["State Management"])
+def state() -> Any:
+    """Return the active HTTP episode state when present."""
+
+    with _http_env_lock:
+        env = _http_env
+        if env is None:
+            env = OpsGauntletEnvironment()
+            try:
+                return env.state
+            finally:
+                env.close()
+        return env.state
 
 
 @app.get("/", include_in_schema=False)

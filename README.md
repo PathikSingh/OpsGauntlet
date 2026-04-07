@@ -1,3 +1,12 @@
+---
+title: Ops Gauntlet
+emoji: "???"
+sdk: docker
+app_port: 8000
+pinned: false
+license: mit
+---
+
 # Ops Gauntlet
 
 Ops Gauntlet is an OpenEnv-compatible benchmark for evaluating and demonstrating agent behavior during release failures, production incidents, rollback decisions, hotfix workflows, and stakeholder communication.
@@ -93,12 +102,27 @@ Instead of solving a generic API-order puzzle, the agent operates inside a coher
 - `update_status_page`
 - `schedule_postmortem`
 
+## Action And Observation Spaces
+
+The typed action space is `OpsGauntletAction`, which carries one `ToolCallRequest`:
+- `tool_name`: the operational tool the agent wants to call
+- `parameters`: structured arguments for that tool
+- `reasoning`: a short explanation of the chosen action
+
+The typed observation space is `OpsGauntletObservation`, which exposes:
+- scenario identity and briefing (`task_id`, `title`, `difficulty`, `briefing`)
+- available affordances (`available_tools`, `tool_schemas`)
+- live system state (`service_snapshot`, `signal_snapshot`)
+- recent execution context (`timeline`, `completed_objectives`, `last_tool_result`)
+- scoring and episode controls (`reward`, `max_steps`, `max_reward`, `metadata`, `done`)
+
 ## Local Usage
 
 ```bash
 python demo_runner.py public_payments_incident
 python demo_runner.py checkout_fix_forward_major
 python inference.py --scope all
+python inference.py --task-id rollback_alpha --runner submission
 python benchmark_report.py
 ```
 
@@ -160,6 +184,17 @@ The report includes:
 - optional scripted-vs-random comparison
 
 Normalized score is computed against each task's `max_reward` and capped to the `0.0-1.0` range for clean benchmark reporting.
+The surfaced environment `reward` and benchmark `score` stay in the required `0.0-1.0` range, while raw shaped reward remains available through observation metadata and benchmark report fields for debugging.
+
+## Submission Compliance Notes
+
+The root-level `inference.py` is set up for the round-one checklist:
+- required env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`
+- optional env var when using `from_docker_image()`: `LOCAL_IMAGE_NAME`
+- defaults are provided only for `API_BASE_URL` and `MODEL_NAME`
+- any LLM-backed path uses `from openai import OpenAI`
+- stdout is restricted to structured `[START]`, `[STEP]`, and `[END]` log lines
+- `python inference.py` runs the local in-process baseline for reproducible validation, while `--runner submission` can smoke-test the deployed Space or Docker image path
 
 ## Demo Flow
 

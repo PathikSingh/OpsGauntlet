@@ -10,9 +10,15 @@ from random import Random
 from typing import Any, Dict, Iterable
 
 from inference import ScriptedBaselineAgent, iter_task_ids, run_episode
-from opsgauntlet.models import OpsGauntletAction, ToolCallRequest
-from opsgauntlet.server.environment import OpsGauntletEnvironment
-from opsgauntlet.server.task_bank import TASK_BANK, get_task_by_id
+
+try:
+    from opsgauntlet.models import OpsGauntletAction, ToolCallRequest
+    from opsgauntlet.server.environment import OpsGauntletEnvironment
+    from opsgauntlet.server.task_bank import TASK_BANK, get_task_by_id
+except ImportError:  # pragma: no cover
+    from models import OpsGauntletAction, ToolCallRequest  # type: ignore
+    from server.environment import OpsGauntletEnvironment  # type: ignore
+    from server.task_bank import TASK_BANK, get_task_by_id  # type: ignore
 
 
 def collect_benchmark_results(
@@ -27,20 +33,23 @@ def collect_benchmark_results(
     for task_id in task_ids:
         outcome = _run_policy_episode(task_id=task_id, seed=seed, policy=policy)
         task = get_task_by_id(task_id)
-        raw_ratio = outcome["total_reward"] / task.max_reward if task.max_reward else 0.0
-        normalized_score = max(0.0, min(raw_ratio, 1.0))
+        raw_total_reward = float(outcome.get("raw_total_reward", outcome["total_reward"]))
+        score = float(outcome.get("score", outcome["total_reward"]))
+        raw_ratio = raw_total_reward / task.max_reward if task.max_reward else 0.0
         results.append(
             {
                 **outcome,
                 "max_reward": task.max_reward,
+                "score": round(score, 3),
+                "raw_total_reward": round(raw_total_reward, 2),
                 "reward_ratio": round(raw_ratio, 3),
-                "normalized_score": round(normalized_score, 3),
+                "normalized_score": round(max(0.0, min(score, 1.0)), 3),
             }
         )
 
     difficulty_summary = _summarize_by_difficulty(results)
     success_count = sum(1 for item in results if item["terminal_outcome"] == "success")
-    total_reward = sum(item["total_reward"] for item in results)
+    total_reward = sum(item["raw_total_reward"] for item in results)
     total_normalized = sum(item["normalized_score"] for item in results)
 
     return {
@@ -110,7 +119,6 @@ def run_random_episode(task_id: str, seed: int = 7, verbose: bool = True) -> Dic
     env = OpsGauntletEnvironment()
     rng = Random(seed)
     observation = env.reset(seed=seed, task_id=task_id)
-    total_reward = 0.0
 
     if verbose:
         print(f"\n=== Random policy: {observation.title} ({task_id}) ===")
@@ -126,14 +134,15 @@ def run_random_episode(task_id: str, seed: int = 7, verbose: bool = True) -> Dic
             )
         )
         observation = env.step(action)
-        total_reward += observation.reward or 0.0
 
     return {
         "task_id": task_id,
         "title": observation.title,
         "difficulty": observation.difficulty,
         "terminal_outcome": observation.metadata.get("terminal_outcome", "unknown"),
-        "total_reward": round(total_reward, 2),
+        "score": round(float(observation.metadata.get("episode_score", observation.reward or 0.0)), 3),
+        "total_reward": round(float(observation.metadata.get("raw_total_reward", 0.0)), 2),
+        "raw_total_reward": round(float(observation.metadata.get("raw_total_reward", 0.0)), 2),
         "steps": observation.step_number,
     }
 
@@ -215,7 +224,7 @@ def print_report(report: Dict[str, Any]) -> None:
             f"{item['terminal_outcome']} "
             f"(difficulty={item['difficulty']}, "
             f"steps={item['steps']}, "
-            f"reward={item['total_reward']}, "
+            f"reward={item['raw_total_reward']}, "
             f"max_reward={item['max_reward']}, "
             f"normalized={item['normalized_score']:.3f})"
         )
@@ -274,7 +283,7 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
     for item in report["results"]:
         lines.append(
             f"| {item['task_id']} | {item['difficulty']} | {item['terminal_outcome']} | "
-            f"{item['steps']} | {item['total_reward']} | {item['max_reward']} | {item['normalized_score']:.3f} |"
+            f"{item['steps']} | {item['raw_total_reward']} | {item['max_reward']} | {item['normalized_score']:.3f} |"
         )
     return "\n".join(lines)
 
@@ -318,6 +327,7 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                 "difficulty",
                 "terminal_outcome",
                 "steps",
+                "score",
                 "total_reward",
                 "max_reward",
                 "reward_ratio",
@@ -333,6 +343,7 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                     "difficulty": item["difficulty"],
                     "terminal_outcome": item["terminal_outcome"],
                     "steps": item["steps"],
+                    "score": item["score"],
                     "total_reward": item["total_reward"],
                     "max_reward": item["max_reward"],
                     "reward_ratio": item["reward_ratio"],

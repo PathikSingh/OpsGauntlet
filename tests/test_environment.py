@@ -58,7 +58,9 @@ def test_rollback_scenario_can_complete_successfully():
     )
 
     assert result.done is True
-    assert result.reward is not None and result.reward > 5
+    assert result.reward is not None and 0.0 <= result.reward <= 1.0
+    assert result.metadata["episode_score"] == 1.0
+    assert result.metadata["raw_total_reward"] > 5
     assert "rolled_back_safely" in result.completed_objectives
     assert "internal_comms_sent" in result.completed_objectives
 
@@ -99,7 +101,8 @@ def test_promoting_unhealthy_canary_is_penalized():
     step(env, "check_ci_status", {"run_id": run_id})
 
     failed = step(env, "deploy_canary", {"run_id": run_id})
-    assert failed.reward is not None and failed.reward < 0
+    assert failed.reward is not None and 0.0 <= failed.reward <= 1.0
+    assert failed.metadata["raw_step_reward"] < 0
 
 
 def test_pause_and_verify_recovery_flow():
@@ -134,13 +137,15 @@ def test_cannot_close_customer_incident_before_recovery():
         {"status": "resolved", "message": "premature close"},
     )
 
-    assert result.reward is not None and result.reward < 0
+    assert result.reward is not None and 0.0 <= result.reward <= 1.0
+    assert result.metadata["raw_step_reward"] < 0
     assert result.last_tool_result.success is False
 
 
 def test_scripted_baseline_solves_all_tasks():
     outcomes = [run_episode(task.task_id, verbose=False) for task in TASK_BANK]
     assert all(item["terminal_outcome"] == "success" for item in outcomes)
+    assert all(0.0 <= item["score"] <= 1.0 for item in outcomes)
 
 
 def test_new_tasks_exist_and_can_reset():
@@ -187,12 +192,41 @@ def test_root_page_and_robots_are_served():
     assert "User-agent" in robots.text
 
 
+def test_http_reset_then_step_keeps_episode_state():
+    from opsgauntlet.server.app import app
+
+    client = TestClient(app)
+    reset = client.post("/reset", json={"task_id": "rollback_alpha", "seed": 7})
+    assert reset.status_code == 200
+    assert reset.json()["observation"]["task_id"] == "rollback_alpha"
+
+    step_response = client.post(
+        "/step",
+        json={
+            "action": {
+                "tool_call": {
+                    "tool_name": "inspect_release_status",
+                    "parameters": {},
+                    "reasoning": "Check release state first.",
+                }
+            }
+        },
+    )
+    assert step_response.status_code == 200
+    payload = step_response.json()
+    assert payload["observation"]["step_number"] == 1
+    assert payload["observation"]["last_tool_result"]["tool_name"] == "inspect_release_status"
+    assert payload["reward"] == 0.175
+    assert payload["observation"]["metadata"]["raw_step_reward"] == 3.5
+
+
 def test_benchmark_report_supports_exports_and_comparison():
     report = collect_benchmark_results(scope="all", seed=7)
     comparison = collect_comparison_report(scope="all", seed=7)
     assert comparison["scripted"]["success_count"] == len(TASK_BANK)
     assert comparison["random"]["task_count"] == len(TASK_BANK)
     assert comparison["delta"]["average_normalized_score"] >= 0.0
+    assert comparison["scripted"]["average_reward"] >= comparison["random"]["average_reward"]
 
     markdown = render_markdown_report(report)
     assert "# OpsGauntlet Benchmark Report" in markdown
