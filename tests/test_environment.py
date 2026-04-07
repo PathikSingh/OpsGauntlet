@@ -159,6 +159,23 @@ def test_auto_policy_prefers_proxy_when_api_key_exists(monkeypatch):
     assert inference._resolve_policy("auto") == "proxy_scripted"
 
 
+def test_proxy_backed_agent_does_not_crash_when_proxy_call_fails(monkeypatch):
+    monkeypatch.setattr(inference, "API_KEY", "test-key")
+    agent = inference.ProxyBackedBaselineAgent()
+
+    class _Boom:
+        def create(self, *args, **kwargs):
+            raise RuntimeError("proxy unavailable")
+
+    agent._client.chat.completions = _Boom()
+
+    env = OpsGauntletEnvironment()
+    obs = env.reset(task_id="rollback_alpha")
+    action = agent.act(obs)
+
+    assert action.tool_call.tool_name == "inspect_release_status"
+
+
 def test_new_tasks_exist_and_can_reset():
     env = OpsGauntletEnvironment()
     for task_id in [

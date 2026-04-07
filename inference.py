@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable
 
@@ -380,32 +381,38 @@ class ProxyBackedBaselineAgent:
         return self._baseline.act(observation)
 
     def _touch_proxy(self, observation: OpsGauntletObservation) -> None:
-        self._client.chat.completions.create(
-            model=MODEL_NAME,
-            temperature=0,
-            max_tokens=8,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are validating connectivity for a release-operations environment. "
-                        "Reply with the single token OK."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {
-                            "task_id": observation.task_id,
-                            "title": observation.title,
-                            "available_tools": observation.available_tools,
-                            "service_snapshot": observation.service_snapshot.model_dump(),
-                            "signal_snapshot": observation.signal_snapshot.model_dump(),
-                        }
-                    ),
-                },
-            ],
-        )
+        try:
+            self._client.chat.completions.create(
+                model=MODEL_NAME,
+                temperature=0,
+                max_tokens=8,
+                timeout=20,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are validating connectivity for a release-operations environment. "
+                            "Reply with the single token OK."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "task_id": observation.task_id,
+                                "title": observation.title,
+                                "available_tools": observation.available_tools,
+                                "service_snapshot": observation.service_snapshot.model_dump(),
+                                "signal_snapshot": observation.signal_snapshot.model_dump(),
+                            }
+                        ),
+                    },
+                ],
+            )
+        except Exception as exc:
+            # Phase 2 requires a proxy attempt, but inference should still complete
+            # even if the validator proxy is temporarily unavailable.
+            print(f"[WARN] proxy_touch_failed {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
 def _emit(event: str, payload: Dict[str, Any], enabled: bool) -> None:
