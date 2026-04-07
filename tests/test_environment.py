@@ -220,6 +220,17 @@ def test_http_reset_then_step_keeps_episode_state():
     assert payload["observation"]["metadata"]["raw_step_reward"] == 3.5
 
 
+def test_http_reset_accepts_empty_body():
+    from opsgauntlet.server.app import app
+
+    client = TestClient(app)
+    response = client.post("/reset")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["done"] is False
+    assert "task_id" in payload["observation"]
+
+
 def test_benchmark_report_supports_exports_and_comparison():
     report = collect_benchmark_results(scope="all", seed=7)
     comparison = collect_comparison_report(scope="all", seed=7)

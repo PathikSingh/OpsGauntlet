@@ -5,7 +5,7 @@ from __future__ import annotations
 from threading import RLock
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import Body, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 try:
@@ -82,7 +82,7 @@ for route_path, route_methods in (
 
 
 @app.post("/reset", response_model=ResetResponse, tags=["Environment Control"])
-def reset(request: ResetRequest) -> ResetResponse:
+def reset(request: ResetRequest = Body(default_factory=ResetRequest)) -> ResetResponse:
     """Stateful HTTP reset for validator-friendly sequential calls."""
 
     env = OpsGauntletEnvironment()
