@@ -85,7 +85,7 @@ class OpsGauntletEnvironment(
         self._raw_total_reward = 0.0
         self._world = self._build_world(self._task)
 
-        return self._make_observation(reward=0.0, done=False)
+        return self._make_observation(reward=clamp_strict_score(0.0), done=False)
 
     def step(
         self,

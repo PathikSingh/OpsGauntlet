@@ -41,7 +41,7 @@ def test_reset_returns_valid_observation():
     obs = env.reset(task_id="rollback_alpha")
     assert obs.task_id == "rollback_alpha"
     assert obs.available_tools
-    assert obs.reward == 0.0
+    assert 0.0 < obs.reward < 1.0
     assert obs.done is False
 
 
