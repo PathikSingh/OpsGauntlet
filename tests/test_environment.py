@@ -59,8 +59,8 @@ def test_rollback_scenario_can_complete_successfully():
     )
 
     assert result.done is True
-    assert result.reward is not None and 0.0 <= result.reward <= 1.0
-    assert result.metadata["episode_score"] == 1.0
+    assert result.reward is not None and 0.0 < result.reward < 1.0
+    assert 0.0 < result.metadata["episode_score"] < 1.0
     assert result.metadata["raw_total_reward"] > 5
     assert "rolled_back_safely" in result.completed_objectives
     assert "internal_comms_sent" in result.completed_objectives
@@ -146,7 +146,7 @@ def test_cannot_close_customer_incident_before_recovery():
 def test_scripted_baseline_solves_all_tasks():
     outcomes = [run_episode(task.task_id, verbose=False) for task in TASK_BANK]
     assert all(item["terminal_outcome"] == "success" for item in outcomes)
-    assert all(0.0 <= item["score"] <= 1.0 for item in outcomes)
+    assert all(0.0 < item["score"] < 1.0 for item in outcomes)
 
 
 def test_auto_policy_defaults_to_scripted_without_api_key(monkeypatch):
@@ -202,9 +202,26 @@ def test_benchmark_report_covers_all_tasks_with_normalized_scores():
     report = collect_benchmark_results(scope="all", seed=7)
     assert report["task_count"] == len(TASK_BANK)
     assert report["success_count"] == len(TASK_BANK)
-    assert 0.0 <= report["average_normalized_score"] <= 1.0
+    assert 0.0 < report["average_normalized_score"] < 1.0
     for item in report["results"]:
-        assert 0.0 <= item["normalized_score"] <= 1.0
+        assert 0.0 < item["normalized_score"] < 1.0
+
+
+def test_failed_terminal_scores_stay_inside_open_interval():
+    env = OpsGauntletEnvironment()
+    observation = env.reset(task_id="rollback_alpha")
+
+    while not observation.done:
+        observation = step(
+            env,
+            "notify_slack",
+            {"channel": "#eng", "message": "premature update"},
+            reasoning="Keep doing the wrong thing until the episode times out.",
+        )
+
+    assert observation.metadata["terminal_outcome"] == "failure"
+    assert 0.0 < observation.reward < 1.0
+    assert 0.0 < observation.metadata["episode_score"] < 1.0
 
 
 def test_root_page_and_robots_are_served():

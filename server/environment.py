@@ -30,6 +30,14 @@ from .grader import Grader
 from .task_bank import Task, get_random_task
 from .tool_registry import ToolRegistry
 
+STRICT_SCORE_EPSILON = 0.001
+
+
+def clamp_strict_score(value: float) -> float:
+    """Keep surfaced task scores strictly inside the open unit interval."""
+
+    return round(max(STRICT_SCORE_EPSILON, min(value, 1.0 - STRICT_SCORE_EPSILON)), 3)
+
 
 class OpsGauntletEnvironment(
     Environment[OpsGauntletAction, OpsGauntletObservation, State]
@@ -228,6 +236,6 @@ class OpsGauntletEnvironment(
     def _normalized_episode_score(self) -> float:
         assert self._task is not None
         if self._task.max_reward <= 0:
-            return 0.0
+            return clamp_strict_score(0.5)
         normalized = self._raw_total_reward / self._task.max_reward
-        return round(max(0.0, min(normalized, 1.0)), 3)
+        return clamp_strict_score(normalized)

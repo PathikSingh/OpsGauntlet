@@ -13,11 +13,11 @@ from inference import ScriptedBaselineAgent, iter_task_ids, run_episode
 
 try:
     from opsgauntlet.models import OpsGauntletAction, ToolCallRequest
-    from opsgauntlet.server.environment import OpsGauntletEnvironment
+    from opsgauntlet.server.environment import OpsGauntletEnvironment, clamp_strict_score
     from opsgauntlet.server.task_bank import TASK_BANK, get_task_by_id
 except ImportError:  # pragma: no cover
     from models import OpsGauntletAction, ToolCallRequest  # type: ignore
-    from server.environment import OpsGauntletEnvironment  # type: ignore
+    from server.environment import OpsGauntletEnvironment, clamp_strict_score  # type: ignore
     from server.task_bank import TASK_BANK, get_task_by_id  # type: ignore
 
 
@@ -43,7 +43,7 @@ def collect_benchmark_results(
                 "score": round(score, 3),
                 "raw_total_reward": round(raw_total_reward, 2),
                 "reward_ratio": round(raw_ratio, 3),
-                "normalized_score": round(max(0.0, min(score, 1.0)), 3),
+                "normalized_score": clamp_strict_score(score),
             }
         )
 
