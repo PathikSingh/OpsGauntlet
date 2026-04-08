@@ -19,17 +19,17 @@
 
 ## Per Task
 
-| Task | Difficulty | Outcome | Steps | Reward | Max Reward | Normalized |
-|---|---|---|---:|---:|---:|---:|
-| rollback_alpha | easy | success | 4 | 24.4 | 20.0 | 0.999 |
-| hotfix_ci_beta | easy | success | 8 | 25.6 | 25.0 | 0.999 |
-| public_payments_incident | medium | success | 7 | 34.1 | 28.0 | 0.999 |
-| auth_fix_forward | medium | success | 15 | 48.5 | 35.0 | 0.999 |
-| schema_migration_fix | medium | success | 9 | 28.3 | 25.0 | 0.999 |
-| customer_timeline_hard | hard | success | 10 | 42.2 | 38.0 | 0.999 |
-| checkout_fix_forward_major | hard | success | 16 | 51.2 | 40.0 | 0.999 |
-| orders_pause_and_rollback | medium | success | 6 | 29.8 | 28.0 | 0.999 |
-| database_rollback_simple | easy | success | 4 | 24.4 | 20.0 | 0.999 |
-| api_gateway_fix_forward | medium | success | 9 | 28.3 | 28.0 | 0.999 |
-| notification_service_sev2 | medium | success | 7 | 34.1 | 28.0 | 0.999 |
-| ml_pipeline_hard | hard | success | 10 | 42.2 | 40.0 | 0.999 |
+| Task | Difficulty | Outcome | Steps | Points | Normalized |
+|---|---|---|---:|---:|---:|
+| rollback_alpha | easy | success | 4 | 24.4 | 0.999 |
+| hotfix_ci_beta | easy | success | 8 | 25.6 | 0.999 |
+| public_payments_incident | medium | success | 7 | 34.1 | 0.999 |
+| auth_fix_forward | medium | success | 15 | 48.5 | 0.999 |
+| schema_migration_fix | medium | success | 9 | 28.3 | 0.999 |
+| customer_timeline_hard | hard | success | 10 | 42.2 | 0.999 |
+| checkout_fix_forward_major | hard | success | 16 | 51.2 | 0.999 |
+| orders_pause_and_rollback | medium | success | 6 | 29.8 | 0.999 |
+| database_rollback_simple | easy | success | 4 | 24.4 | 0.999 |
+| api_gateway_fix_forward | medium | success | 9 | 28.3 | 0.999 |
+| notification_service_sev2 | medium | success | 7 | 34.1 | 0.999 |
+| ml_pipeline_hard | hard | success | 10 | 42.2 | 0.999 |

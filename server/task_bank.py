@@ -36,7 +36,7 @@ class Task:
     briefing: str
     strategy: str
     max_steps: int
-    max_reward: float
+    score_basis: float
     hint: str
     available_tools: List[str]
     customer_facing: bool
@@ -63,7 +63,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=6,
-        max_reward=20.0,
+        score_basis=20.0,
         hint="Inspect release state and production metrics before rolling back.",
         available_tools=[
             "inspect_release_status",
@@ -102,7 +102,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="fix_forward",
         max_steps=8,
-        max_reward=25.0,
+        score_basis=25.0,
         hint="Read the CI failure before selecting a patch.",
         available_tools=[
             "inspect_ci_failure",
@@ -147,7 +147,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=10,
-        max_reward=28.0,
+        score_basis=28.0,
         hint="Because customers are impacted, incident tracking and status-page closure matter.",
         available_tools=[
             "inspect_release_status",
@@ -189,7 +189,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="fix_forward",
         max_steps=15,
-        max_reward=35.0,
+        score_basis=35.0,
         hint="Rollback restores traffic but does not satisfy the security requirement.",
         available_tools=ALL_TOOLS,
         customer_facing=True,
@@ -229,7 +229,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="fix_forward",
         max_steps=9,
-        max_reward=25.0,
+        score_basis=25.0,
         hint="This is not a customer incident, so focus on diagnosis, CI, and safe rollout.",
         available_tools=[
             "inspect_ci_failure",
@@ -276,7 +276,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=12,
-        max_reward=38.0,
+        score_basis=38.0,
         hint="The service must be restored, ticket resolved, public status closed, and postmortem scheduled.",
         available_tools=ALL_TOOLS,
         customer_facing=True,
@@ -311,7 +311,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="fix_forward",
         max_steps=16,
-        max_reward=40.0,
+        score_basis=40.0,
         hint="This scenario rewards containment before remediation and recovery verification before closure.",
         available_tools=ALL_TOOLS,
         customer_facing=True,
@@ -351,7 +351,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=9,
-        max_reward=28.0,
+        score_basis=28.0,
         hint="Stopping rollout expansion before rollback demonstrates better operational judgment.",
         available_tools=[
             "inspect_release_status",
@@ -392,7 +392,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=6,
-        max_reward=20.0,
+        score_basis=20.0,
         hint="Inspect first, then rollback, then notify.",
         available_tools=[
             "inspect_release_status",
@@ -431,7 +431,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="fix_forward",
         max_steps=10,
-        max_reward=28.0,
+        score_basis=28.0,
         hint="Read the CI failure before picking a patch.",
         available_tools=[
             "inspect_ci_failure",
@@ -477,7 +477,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=10,
-        max_reward=28.0,
+        score_basis=28.0,
         hint="Create the ticket before rolling back so you have an incident ID for updates.",
         available_tools=[
             "inspect_release_status",
@@ -520,7 +520,7 @@ TASK_BANK: List[Task] = [
         ),
         strategy="rollback",
         max_steps=14,
-        max_reward=40.0,
+        score_basis=40.0,
         hint=(
             "Pause rollout first to contain the bad model. Full lifecycle means ticket "
             "opened and closed, status page opened and closed, slack sent, postmortem scheduled."

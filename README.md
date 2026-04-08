@@ -114,7 +114,7 @@ The typed observation space is `OpsGauntletObservation`, which exposes:
 - available affordances (`available_tools`, `tool_schemas`)
 - live system state (`service_snapshot`, `signal_snapshot`)
 - recent execution context (`timeline`, `completed_objectives`, `last_tool_result`)
-- scoring and episode controls (`reward`, `max_steps`, `max_reward`, `metadata`, `done`)
+- scoring and episode controls (`reward`, `max_steps`, `metadata`, `done`)
 
 ## Local Usage
 
@@ -183,7 +183,7 @@ The report includes:
 - optional Markdown export
 - optional scripted-vs-random comparison
 
-Normalized score is computed against each task's `max_reward` and then clamped strictly inside `(0, 1)` for validator-safe reporting.
+Normalized score is computed against each task's internal score basis and then clamped strictly inside `(0, 1)` for validator-safe reporting.
 The surfaced environment `reward` and benchmark `score` therefore stay strictly between `0.0` and `1.0`, while raw shaped reward remains available through observation metadata and benchmark report fields for debugging.
 
 ## Submission Compliance Notes

@@ -219,7 +219,6 @@ class OpsGauntletEnvironment(
             last_tool_result=self._last_tool_result,
             step_number=self._state.step_count,
             max_steps=self._task.max_steps,
-            max_reward=self._task.max_reward,
             hint=self._task.hint,
             reward=reward,
             done=done,
@@ -236,7 +235,7 @@ class OpsGauntletEnvironment(
 
     def _normalized_episode_score(self) -> float:
         assert self._task is not None
-        if self._task.max_reward <= 0:
+        if self._task.score_basis <= 0:
             return clamp_strict_score(0.5)
-        normalized = self._raw_total_reward / self._task.max_reward
+        normalized = self._raw_total_reward / self._task.score_basis
         return clamp_strict_score(normalized)

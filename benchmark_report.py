@@ -35,14 +35,11 @@ def collect_benchmark_results(
         task = get_task_by_id(task_id)
         total_points = float(outcome.get("total_points", outcome.get("total_reward", 0.0)))
         score = float(outcome.get("score", total_points))
-        raw_ratio = total_points / task.max_reward if task.max_reward else 0.0
         results.append(
             {
                 **outcome,
-                "max_reward": task.max_reward,
                 "score": round(score, 3),
                 "total_points": round(total_points, 2),
-                "reward_ratio": round(raw_ratio, 3),
                 "normalized_score": clamp_strict_score(score),
             }
         )
@@ -224,7 +221,6 @@ def print_report(report: Dict[str, Any]) -> None:
             f"(difficulty={item['difficulty']}, "
             f"steps={item['steps']}, "
             f"points={item['total_points']}, "
-            f"max_reward={item['max_reward']}, "
             f"normalized={item['normalized_score']:.3f})"
         )
 
@@ -275,14 +271,14 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
             "",
             "## Per Task",
             "",
-            "| Task | Difficulty | Outcome | Steps | Reward | Max Reward | Normalized |",
-            "|---|---|---|---:|---:|---:|---:|",
+            "| Task | Difficulty | Outcome | Steps | Points | Normalized |",
+            "|---|---|---|---:|---:|---:|",
         ]
     )
     for item in report["results"]:
         lines.append(
             f"| {item['task_id']} | {item['difficulty']} | {item['terminal_outcome']} | "
-            f"{item['steps']} | {item['total_points']} | {item['max_reward']} | {item['normalized_score']:.3f} |"
+            f"{item['steps']} | {item['total_points']} | {item['normalized_score']:.3f} |"
         )
     return "\n".join(lines)
 
@@ -328,8 +324,6 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                 "steps",
                 "score",
                 "total_points",
-                "max_reward",
-                "reward_ratio",
                 "normalized_score",
             ],
         )
@@ -344,8 +338,6 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                     "steps": item["steps"],
                     "score": item["score"],
                     "total_points": item["total_points"],
-                    "max_reward": item["max_reward"],
-                    "reward_ratio": item["reward_ratio"],
                     "normalized_score": item["normalized_score"],
                 }
             )

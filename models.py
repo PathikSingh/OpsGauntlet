@@ -94,7 +94,6 @@ class OpsGauntletObservation(Observation):
     )
     step_number: int = Field(default=0, description="Current step number.")
     max_steps: int = Field(default=10, description="Maximum steps for the task.")
-    max_reward: float = Field(default=0.0, description="Reference maximum reward for the task.")
     hint: Optional[str] = Field(
         default=None,
         description="Scenario hint that nudges the agent toward safe behavior.",

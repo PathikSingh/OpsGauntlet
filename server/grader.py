@@ -81,7 +81,7 @@ class Grader:
                 terminal_outcome = "failure"
 
         normalized_reward = self._strict_score(
-            raw_reward / task.max_reward if task.max_reward > 0 else 0.5
+            raw_reward / task.score_basis if task.score_basis > 0 else 0.5
         )
 
         return GradeResult(

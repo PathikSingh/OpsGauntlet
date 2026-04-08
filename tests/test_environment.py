@@ -190,14 +190,6 @@ def test_new_tasks_exist_and_can_reset():
         assert len(obs.available_tools) > 0
 
 
-def test_all_tasks_expose_positive_max_reward():
-    env = OpsGauntletEnvironment()
-    for task in TASK_BANK:
-        obs = env.reset(task_id=task.task_id)
-        assert isinstance(obs.max_reward, float)
-        assert obs.max_reward > 0
-
-
 def test_benchmark_report_covers_all_tasks_with_normalized_scores():
     report = collect_benchmark_results(scope="all", seed=7)
     assert report["task_count"] == len(TASK_BANK)
@@ -263,6 +255,7 @@ def test_http_reset_then_step_keeps_episode_state():
     assert payload["observation"]["last_tool_result"]["tool_name"] == "inspect_release_status"
     assert payload["reward"] == 0.175
     assert payload["observation"]["metadata"]["debug_step_points"] == 3.5
+    assert "max_reward" not in payload["observation"]
 
 
 def test_http_reset_accepts_empty_body():
@@ -285,6 +278,7 @@ def test_websocket_session_preserves_metadata_for_scripted_runner():
         reset_payload = websocket.receive_json()["data"]
         assert reset_payload["reward"] == 0.001
         assert reset_payload["observation"]["metadata"]["strategy"] == "rollback"
+        assert "max_reward" not in reset_payload["observation"]
 
         websocket.send_json(
             {
