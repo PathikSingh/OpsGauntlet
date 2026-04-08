@@ -183,8 +183,8 @@ The report includes:
 - optional Markdown export
 - optional scripted-vs-random comparison
 
-Normalized score is computed against each task's internal score basis and then clamped strictly inside `(0, 1)` for validator-safe reporting.
-The surfaced environment `reward` and benchmark `score` therefore stay strictly between `0.0` and `1.0`, while raw shaped reward remains available through observation metadata and benchmark report fields for debugging.
+Normalized score is computed against each task's internal points budget and then clamped inside the open unit interval for validator-safe reporting.
+The surfaced environment `reward` and benchmark `score` therefore avoid the exact lower and upper endpoints, while raw shaped points remain available through observation metadata and benchmark report fields for debugging.
 
 ## Submission Compliance Notes
 

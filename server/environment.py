@@ -235,7 +235,7 @@ class OpsGauntletEnvironment(
 
     def _normalized_episode_score(self) -> float:
         assert self._task is not None
-        if self._task.score_basis <= 0:
+        if self._task.points_budget <= 0:
             return clamp_strict_score(0.5)
-        normalized = self._raw_total_reward / self._task.score_basis
+        normalized = self._raw_total_reward / self._task.points_budget
         return clamp_strict_score(normalized)

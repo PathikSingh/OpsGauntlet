@@ -199,6 +199,19 @@ def test_benchmark_report_covers_all_tasks_with_normalized_scores():
         assert 0.0 < item["normalized_score"] < 1.0
 
 
+def test_task_definitions_do_not_expose_out_of_range_score_fields():
+    for task in TASK_BANK:
+        task_payload = task.__dict__
+        offenders = {
+            key: value
+            for key, value in task_payload.items()
+            if ("score" in key.lower() or "reward" in key.lower())
+            and isinstance(value, (int, float))
+            and not (0.0 < float(value) < 1.0)
+        }
+        assert offenders == {}
+
+
 def test_failed_terminal_scores_stay_inside_open_interval():
     env = OpsGauntletEnvironment()
     observation = env.reset(task_id="rollback_alpha")
