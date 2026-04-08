@@ -8,6 +8,9 @@ from typing import Any
 from fastapi import Body, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
+import openenv.core.env_server.http_server as openenv_http_server
+import openenv.core.env_server.serialization as openenv_serialization
+
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as exc:  # pragma: no cover
@@ -32,6 +35,23 @@ except ImportError:  # pragma: no cover
     from server.environment import OpsGauntletEnvironment  # type: ignore
 
 
+def _serialize_observation_with_metadata(
+    observation: OpsGauntletObservation,
+) -> dict[str, Any]:
+    """Match HTTP and WebSocket payloads so validator and client see the same data."""
+
+    payload = observation.model_dump(exclude={"reward", "done"})
+    return {
+        "observation": payload,
+        "reward": observation.reward,
+        "done": observation.done,
+    }
+
+
+openenv_http_server.serialize_observation = _serialize_observation_with_metadata
+openenv_serialization.serialize_observation = _serialize_observation_with_metadata
+
+
 app = create_app(
     OpsGauntletEnvironment,
     OpsGauntletAction,
@@ -47,12 +67,7 @@ _http_env: OpsGauntletEnvironment | None = None
 def _serialize_observation(observation: OpsGauntletObservation) -> dict[str, Any]:
     """Preserve metadata for plain HTTP clients and validator-style calls."""
 
-    payload = observation.model_dump(exclude={"reward", "done"})
-    return {
-        "observation": payload,
-        "reward": observation.reward,
-        "done": observation.done,
-    }
+    return _serialize_observation_with_metadata(observation)
 
 
 def _set_http_env(env: OpsGauntletEnvironment | None) -> OpsGauntletEnvironment | None:

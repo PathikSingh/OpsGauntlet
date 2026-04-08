@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Dict, List
 
 try:
@@ -15,6 +16,7 @@ from .task_bank import Task
 @dataclass
 class GradeResult:
     reward: float
+    raw_points: float
     completed_objectives: List[str]
     done: bool
     terminal_outcome: str
@@ -22,6 +24,12 @@ class GradeResult:
 
 class Grader:
     """Compute per-step rewards and terminal success."""
+
+    @staticmethod
+    def _strict_score(value: float) -> float:
+        if not isfinite(value):
+            return 0.5
+        return round(max(0.001, min(value, 0.999)), 3)
 
     def evaluate(
         self,
@@ -36,44 +44,49 @@ class Grader:
         previous_objectives = set(self._completed_objectives(task, before))
         new_objectives = [obj for obj in objectives if obj not in previous_objectives]
 
-        reward = -0.2
+        raw_reward = -0.2
         if result.success:
-            reward += 1.1
+            raw_reward += 1.1
         else:
-            reward -= 1.0
+            raw_reward -= 1.0
 
         if "unsafe_action" in result.tags:
-            reward -= 4.5
+            raw_reward -= 4.5
         if "precondition_failed" in result.tags:
-            reward -= 1.5
+            raw_reward -= 1.5
         if "redundant" in result.tags:
-            reward -= 0.6
+            raw_reward -= 0.6
         if "diagnostic" in result.tags and result.success:
-            reward += 0.8
+            raw_reward += 0.8
         if "communication" in result.tags and not after["flags"].get("inspected_metrics"):
-            reward -= 0.8
+            raw_reward -= 0.8
 
-        reward += 1.6 * len(new_objectives)
+        raw_reward += 1.6 * len(new_objectives)
 
         if reasoning.strip():
-            reward += 0.2
+            raw_reward += 0.2
 
         done = self._is_success(task, after, objectives) or step_number >= task.max_steps
         terminal_outcome = "in_progress"
 
         if done and self._is_success(task, after, objectives):
-            reward += 12.0
+            raw_reward += 12.0
             terminal_outcome = "success"
         elif done:
             if after.get("service_recovered"):
-                reward += 3.5
+                raw_reward += 3.5
                 terminal_outcome = "partial"
             else:
-                reward -= 5.0
+                raw_reward -= 5.0
                 terminal_outcome = "failure"
 
+        normalized_reward = self._strict_score(
+            raw_reward / task.max_reward if task.max_reward > 0 else 0.5
+        )
+
         return GradeResult(
-            reward=round(reward, 2),
+            reward=normalized_reward,
+            raw_points=round(raw_reward, 2),
             completed_objectives=objectives,
             done=done,
             terminal_outcome=terminal_outcome,

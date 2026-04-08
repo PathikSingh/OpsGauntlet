@@ -474,7 +474,6 @@ def _execute_episode(
                 "tool_name": action.tool_call.tool_name,
                 "success": None if observation.last_tool_result is None else observation.last_tool_result.success,
                 "score": round(float(observation.reward or 0.0), 3),
-                "raw_step_reward": observation.metadata.get("raw_step_reward"),
                 "done": observation.done,
                 "terminal_outcome": observation.metadata.get("terminal_outcome", "in_progress"),
             },
@@ -483,7 +482,7 @@ def _execute_episode(
 
     outcome = observation.metadata.get("terminal_outcome", "unknown")
     score = round(float(observation.metadata.get("episode_score", observation.reward or 0.0)), 3)
-    raw_total_reward = round(float(observation.metadata.get("raw_total_reward", 0.0)), 2)
+    total_points = round(float(observation.metadata.get("debug_total_points", 0.0)), 2)
     _emit(
         "END",
         {
@@ -492,7 +491,6 @@ def _execute_episode(
             "terminal_outcome": outcome,
             "steps": observation.step_number,
             "score": score,
-            "raw_total_reward": raw_total_reward,
         },
         verbose,
     )
@@ -502,8 +500,7 @@ def _execute_episode(
         "difficulty": observation.difficulty,
         "terminal_outcome": outcome,
         "score": score,
-        "total_reward": raw_total_reward,
-        "raw_total_reward": raw_total_reward,
+        "total_points": total_points,
         "steps": observation.step_number,
     }
 

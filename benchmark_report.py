@@ -33,15 +33,15 @@ def collect_benchmark_results(
     for task_id in task_ids:
         outcome = _run_policy_episode(task_id=task_id, seed=seed, policy=policy)
         task = get_task_by_id(task_id)
-        raw_total_reward = float(outcome.get("raw_total_reward", outcome["total_reward"]))
-        score = float(outcome.get("score", outcome["total_reward"]))
-        raw_ratio = raw_total_reward / task.max_reward if task.max_reward else 0.0
+        total_points = float(outcome.get("total_points", outcome.get("total_reward", 0.0)))
+        score = float(outcome.get("score", total_points))
+        raw_ratio = total_points / task.max_reward if task.max_reward else 0.0
         results.append(
             {
                 **outcome,
                 "max_reward": task.max_reward,
                 "score": round(score, 3),
-                "raw_total_reward": round(raw_total_reward, 2),
+                "total_points": round(total_points, 2),
                 "reward_ratio": round(raw_ratio, 3),
                 "normalized_score": clamp_strict_score(score),
             }
@@ -49,7 +49,7 @@ def collect_benchmark_results(
 
     difficulty_summary = _summarize_by_difficulty(results)
     success_count = sum(1 for item in results if item["terminal_outcome"] == "success")
-    total_reward = sum(item["raw_total_reward"] for item in results)
+    total_points = sum(item["total_points"] for item in results)
     total_normalized = sum(item["normalized_score"] for item in results)
 
     return {
@@ -59,7 +59,7 @@ def collect_benchmark_results(
         "task_count": len(results),
         "success_count": success_count,
         "success_rate": round(success_count / len(results), 3) if results else 0.0,
-        "average_reward": round(total_reward / len(results), 2) if results else 0.0,
+        "average_points": round(total_points / len(results), 2) if results else 0.0,
         "average_normalized_score": round(total_normalized / len(results), 3) if results else 0.0,
         "difficulty_summary": difficulty_summary,
         "results": results,
@@ -78,7 +78,7 @@ def collect_comparison_report(scope: str = "all", seed: int = 7) -> Dict[str, An
         "random": random_report,
         "delta": {
             "success_rate": round(scripted["success_rate"] - random_report["success_rate"], 3),
-            "average_reward": round(scripted["average_reward"] - random_report["average_reward"], 2),
+            "average_points": round(scripted["average_points"] - random_report["average_points"], 2),
             "average_normalized_score": round(
                 scripted["average_normalized_score"] - random_report["average_normalized_score"],
                 3,
@@ -99,7 +99,7 @@ def _summarize_by_difficulty(results: Iterable[Dict[str, Any]]) -> Dict[str, Dic
             "task_count": len(items),
             "success_count": success_count,
             "success_rate": round(success_count / len(items), 3) if items else 0.0,
-            "average_reward": round(sum(item["total_reward"] for item in items) / len(items), 2) if items else 0.0,
+            "average_points": round(sum(item["total_points"] for item in items) / len(items), 2) if items else 0.0,
             "average_normalized_score": round(sum(item["normalized_score"] for item in items) / len(items), 3) if items else 0.0,
         }
     return summary
@@ -141,8 +141,7 @@ def run_random_episode(task_id: str, seed: int = 7, verbose: bool = True) -> Dic
         "difficulty": observation.difficulty,
         "terminal_outcome": observation.metadata.get("terminal_outcome", "unknown"),
         "score": round(float(observation.metadata.get("episode_score", observation.reward or 0.0)), 3),
-        "total_reward": round(float(observation.metadata.get("raw_total_reward", 0.0)), 2),
-        "raw_total_reward": round(float(observation.metadata.get("raw_total_reward", 0.0)), 2),
+        "total_points": round(float(observation.metadata.get("debug_total_points", 0.0)), 2),
         "steps": observation.step_number,
     }
 
@@ -203,7 +202,7 @@ def print_report(report: Dict[str, Any]) -> None:
         "Overall: "
         f"success={report['success_count']}/{report['task_count']} "
         f"success_rate={report['success_rate']:.1%} "
-        f"avg_reward={report['average_reward']:.2f} "
+        f"avg_points={report['average_points']:.2f} "
         f"avg_normalized={report['average_normalized_score']:.3f}"
     )
 
@@ -213,7 +212,7 @@ def print_report(report: Dict[str, Any]) -> None:
             f"- {difficulty}: "
             f"success={summary['success_count']}/{summary['task_count']} "
             f"success_rate={summary['success_rate']:.1%} "
-            f"avg_reward={summary['average_reward']:.2f} "
+            f"avg_points={summary['average_points']:.2f} "
             f"avg_normalized={summary['average_normalized_score']:.3f}"
         )
 
@@ -224,7 +223,7 @@ def print_report(report: Dict[str, Any]) -> None:
             f"{item['terminal_outcome']} "
             f"(difficulty={item['difficulty']}, "
             f"steps={item['steps']}, "
-            f"reward={item['raw_total_reward']}, "
+            f"points={item['total_points']}, "
             f"max_reward={item['max_reward']}, "
             f"normalized={item['normalized_score']:.3f})"
         )
@@ -239,7 +238,7 @@ def print_comparison_report(comparison: Dict[str, Any]) -> None:
     print("\n--- Delta (scripted - random) ---")
     print(
         f"success_rate_delta={comparison['delta']['success_rate']:.1%} "
-        f"avg_reward_delta={comparison['delta']['average_reward']:.2f} "
+        f"avg_points_delta={comparison['delta']['average_points']:.2f} "
         f"avg_normalized_delta={comparison['delta']['average_normalized_score']:.3f}"
     )
 
@@ -256,18 +255,18 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
         f"- Tasks: `{report['task_count']}`",
         f"- Success: `{report['success_count']}/{report['task_count']}`",
         f"- Success rate: `{report['success_rate']:.1%}`",
-        f"- Average reward: `{report['average_reward']:.2f}`",
+        f"- Average points: `{report['average_points']:.2f}`",
         f"- Average normalized score: `{report['average_normalized_score']:.3f}`",
         "",
         "## By Difficulty",
         "",
-        "| Difficulty | Tasks | Success | Success Rate | Avg Reward | Avg Normalized |",
+        "| Difficulty | Tasks | Success | Success Rate | Avg Points | Avg Normalized |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for difficulty, summary in report["difficulty_summary"].items():
         lines.append(
             f"| {difficulty} | {summary['task_count']} | {summary['success_count']} | "
-            f"{summary['success_rate']:.1%} | {summary['average_reward']:.2f} | "
+            f"{summary['success_rate']:.1%} | {summary['average_points']:.2f} | "
             f"{summary['average_normalized_score']:.3f} |"
         )
 
@@ -283,7 +282,7 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
     for item in report["results"]:
         lines.append(
             f"| {item['task_id']} | {item['difficulty']} | {item['terminal_outcome']} | "
-            f"{item['steps']} | {item['raw_total_reward']} | {item['max_reward']} | {item['normalized_score']:.3f} |"
+            f"{item['steps']} | {item['total_points']} | {item['max_reward']} | {item['normalized_score']:.3f} |"
         )
     return "\n".join(lines)
 
@@ -300,15 +299,15 @@ def render_comparison_markdown(comparison: Dict[str, Any]) -> str:
             f"- Scope: `{comparison['scope']}`",
             f"- Seed: `{comparison['seed']}`",
             "",
-            "| Policy | Success Rate | Avg Reward | Avg Normalized |",
+            "| Policy | Success Rate | Avg Points | Avg Normalized |",
             "|---|---:|---:|---:|",
-            f"| scripted | {scripted['success_rate']:.1%} | {scripted['average_reward']:.2f} | {scripted['average_normalized_score']:.3f} |",
-            f"| random | {random_report['success_rate']:.1%} | {random_report['average_reward']:.2f} | {random_report['average_normalized_score']:.3f} |",
+            f"| scripted | {scripted['success_rate']:.1%} | {scripted['average_points']:.2f} | {scripted['average_normalized_score']:.3f} |",
+            f"| random | {random_report['success_rate']:.1%} | {random_report['average_points']:.2f} | {random_report['average_normalized_score']:.3f} |",
             "",
             "## Delta",
             "",
             f"- Success rate delta: `{comparison['delta']['success_rate']:.1%}`",
-            f"- Average reward delta: `{comparison['delta']['average_reward']:.2f}`",
+            f"- Average points delta: `{comparison['delta']['average_points']:.2f}`",
             f"- Average normalized score delta: `{comparison['delta']['average_normalized_score']:.3f}`",
         ]
     )
@@ -328,7 +327,7 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                 "terminal_outcome",
                 "steps",
                 "score",
-                "total_reward",
+                "total_points",
                 "max_reward",
                 "reward_ratio",
                 "normalized_score",
@@ -344,7 +343,7 @@ def write_csv_report(report: Dict[str, Any], path: str | Path) -> Path:
                     "terminal_outcome": item["terminal_outcome"],
                     "steps": item["steps"],
                     "score": item["score"],
-                    "total_reward": item["total_reward"],
+                    "total_points": item["total_points"],
                     "max_reward": item["max_reward"],
                     "reward_ratio": item["reward_ratio"],
                     "normalized_score": item["normalized_score"],

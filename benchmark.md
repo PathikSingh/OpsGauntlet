@@ -6,12 +6,12 @@
 - Tasks: `12`
 - Success: `12/12`
 - Success rate: `100.0%`
-- Average reward: `34.43`
+- Average points: `34.43`
 - Average normalized score: `0.999`
 
 ## By Difficulty
 
-| Difficulty | Tasks | Success | Success Rate | Avg Reward | Avg Normalized |
+| Difficulty | Tasks | Success | Success Rate | Avg Points | Avg Normalized |
 |---|---:|---:|---:|---:|---:|
 | easy | 3 | 3 | 100.0% | 24.80 | 0.999 |
 | hard | 3 | 3 | 100.0% | 45.20 | 0.999 |

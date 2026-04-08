@@ -128,7 +128,7 @@ class OpsGauntletEnvironment(
             step_number=self._state.step_count,
         )
         self._completed_objectives = grade.completed_objectives
-        self._raw_total_reward += grade.reward
+        self._raw_total_reward += grade.raw_points
         episode_score = self._normalized_episode_score()
 
         observation = self._make_observation(reward=episode_score, done=grade.done)
@@ -138,8 +138,9 @@ class OpsGauntletEnvironment(
         observation.metadata["unsafe_actions"] = list(self._world["unsafe_actions"])
         observation.metadata["auto_rollout_paused"] = self._world["auto_rollout_paused"]
         observation.metadata["recovery_verified"] = self._world["recovery_verified"]
-        observation.metadata["raw_step_reward"] = grade.reward
-        observation.metadata["raw_total_reward"] = round(self._raw_total_reward, 2)
+        observation.metadata["step_score"] = grade.reward
+        observation.metadata["debug_step_points"] = grade.raw_points
+        observation.metadata["debug_total_points"] = round(self._raw_total_reward, 2)
         observation.metadata["episode_score"] = episode_score
         return observation
 

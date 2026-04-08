@@ -61,7 +61,7 @@ def test_rollback_scenario_can_complete_successfully():
     assert result.done is True
     assert result.reward is not None and 0.0 < result.reward < 1.0
     assert 0.0 < result.metadata["episode_score"] < 1.0
-    assert result.metadata["raw_total_reward"] > 5
+    assert result.metadata["debug_total_points"] > 5
     assert "rolled_back_safely" in result.completed_objectives
     assert "internal_comms_sent" in result.completed_objectives
 
@@ -103,7 +103,7 @@ def test_promoting_unhealthy_canary_is_penalized():
 
     failed = step(env, "deploy_canary", {"run_id": run_id})
     assert failed.reward is not None and 0.0 <= failed.reward <= 1.0
-    assert failed.metadata["raw_step_reward"] < 0
+    assert failed.metadata["debug_step_points"] < 0
 
 
 def test_pause_and_verify_recovery_flow():
@@ -139,7 +139,7 @@ def test_cannot_close_customer_incident_before_recovery():
     )
 
     assert result.reward is not None and 0.0 <= result.reward <= 1.0
-    assert result.metadata["raw_step_reward"] < 0
+    assert result.metadata["debug_step_points"] < 0
     assert result.last_tool_result.success is False
 
 
@@ -262,7 +262,7 @@ def test_http_reset_then_step_keeps_episode_state():
     assert payload["observation"]["step_number"] == 1
     assert payload["observation"]["last_tool_result"]["tool_name"] == "inspect_release_status"
     assert payload["reward"] == 0.175
-    assert payload["observation"]["metadata"]["raw_step_reward"] == 3.5
+    assert payload["observation"]["metadata"]["debug_step_points"] == 3.5
 
 
 def test_http_reset_accepts_empty_body():
@@ -276,13 +276,41 @@ def test_http_reset_accepts_empty_body():
     assert "task_id" in payload["observation"]
 
 
+def test_websocket_session_preserves_metadata_for_scripted_runner():
+    from opsgauntlet.server.app import app
+
+    client = TestClient(app)
+    with client.websocket_connect("/ws") as websocket:
+        websocket.send_json({"type": "reset", "data": {"task_id": "rollback_alpha", "seed": 7}})
+        reset_payload = websocket.receive_json()["data"]
+        assert reset_payload["reward"] == 0.001
+        assert reset_payload["observation"]["metadata"]["strategy"] == "rollback"
+
+        websocket.send_json(
+            {
+                "type": "step",
+                "data": {
+                    "tool_call": {
+                        "tool_name": "inspect_release_status",
+                        "parameters": {},
+                        "reasoning": "Check release state first.",
+                    }
+                },
+            }
+        )
+        step_payload = websocket.receive_json()["data"]
+        assert step_payload["reward"] == 0.175
+        assert step_payload["observation"]["metadata"]["step_score"] == 0.175
+        assert step_payload["observation"]["metadata"]["debug_step_points"] == 3.5
+
+
 def test_benchmark_report_supports_exports_and_comparison():
     report = collect_benchmark_results(scope="all", seed=7)
     comparison = collect_comparison_report(scope="all", seed=7)
     assert comparison["scripted"]["success_count"] == len(TASK_BANK)
     assert comparison["random"]["task_count"] == len(TASK_BANK)
     assert comparison["delta"]["average_normalized_score"] >= 0.0
-    assert comparison["scripted"]["average_reward"] >= comparison["random"]["average_reward"]
+    assert comparison["scripted"]["average_points"] >= comparison["random"]["average_points"]
 
     markdown = render_markdown_report(report)
     assert "# OpsGauntlet Benchmark Report" in markdown
