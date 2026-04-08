@@ -62,6 +62,14 @@ class SignalSnapshot(BaseModel):
 class OpsGauntletObservation(Observation):
     """Observation returned after reset and each step."""
 
+    # Override base-class reward with strict (0, 1) float constraint so the
+    # JSON schema explicitly tells the validator that values are bounded.
+    reward: float = Field(
+        default=0.5,
+        gt=0.0,
+        lt=1.0,
+        description="Reward signal from the last action, strictly between 0 and 1.",
+    )
     task_id: str = Field(..., description="Current task identifier.")
     title: str = Field(..., description="Short task title.")
     difficulty: str = Field(..., description="Task difficulty bucket.")
