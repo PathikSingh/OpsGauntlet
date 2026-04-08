@@ -9,6 +9,17 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable
 
+_SCORE_EPS = 0.001
+
+
+def _clamp_score(value: object) -> float:
+    """Ensure a score is strictly inside (0, 1) for validator compliance."""
+    try:
+        v = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        v = 0.5
+    return round(max(_SCORE_EPS, min(v, 1.0 - _SCORE_EPS)), 3)
+
 from openai import OpenAI
 from openenv.core.utils import run_async_safely
 
@@ -473,7 +484,7 @@ def _execute_episode(
                 "step": observation.step_number,
                 "tool_name": action.tool_call.tool_name,
                 "success": None if observation.last_tool_result is None else observation.last_tool_result.success,
-                "score": round(float(observation.reward or 0.0), 3),
+                "score": _clamp_score(observation.reward),
                 "done": observation.done,
                 "terminal_outcome": observation.metadata.get("terminal_outcome", "in_progress"),
             },
@@ -481,7 +492,7 @@ def _execute_episode(
         )
 
     outcome = observation.metadata.get("terminal_outcome", "unknown")
-    score = round(float(observation.metadata.get("episode_score", observation.reward or 0.0)), 3)
+    score = _clamp_score(observation.metadata.get("episode_score", observation.reward))
     total_points = round(float(observation.metadata.get("debug_total_points", 0.0)), 2)
     _emit(
         "END",
