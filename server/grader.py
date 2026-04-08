@@ -29,7 +29,7 @@ class Grader:
     def _strict_score(value: float) -> float:
         if not isfinite(value):
             return 0.5
-        return round(max(0.001, min(value, 0.999)), 3)
+        return round(max(0.01, min(value, 0.99)), 3)
 
     def evaluate(
         self,

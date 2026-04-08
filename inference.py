@@ -9,7 +9,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable
 
-_SCORE_EPS = 0.001
+_SCORE_EPS = 0.01
 
 
 def _clamp_score(value: object) -> float:

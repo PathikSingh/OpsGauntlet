@@ -30,7 +30,7 @@ from .grader import Grader
 from .task_bank import Task, get_random_task
 from .tool_registry import ToolRegistry
 
-STRICT_SCORE_EPSILON = 0.001
+STRICT_SCORE_EPSILON = 0.01
 
 
 def clamp_strict_score(value: float) -> float:
