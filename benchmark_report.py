@@ -138,7 +138,7 @@ def run_random_episode(task_id: str, seed: int = 7, verbose: bool = True) -> Dic
         "difficulty": observation.difficulty,
         "terminal_outcome": observation.metadata.get("terminal_outcome", "unknown"),
         "score": clamp_strict_score(float(observation.metadata.get("episode_score", observation.reward) or 0.5)),
-        "total_points": round(float(observation.metadata.get("debug_total_points", 0.0)), 2),
+        "total_points": 0.0,
         "steps": observation.step_number,
     }
 

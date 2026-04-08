@@ -61,7 +61,6 @@ def test_rollback_scenario_can_complete_successfully():
     assert result.done is True
     assert result.reward is not None and 0.0 < result.reward < 1.0
     assert 0.0 < result.metadata["episode_score"] < 1.0
-    assert result.metadata["debug_total_points"] > 5
     assert "rolled_back_safely" in result.completed_objectives
     assert "internal_comms_sent" in result.completed_objectives
 
@@ -102,8 +101,7 @@ def test_promoting_unhealthy_canary_is_penalized():
     step(env, "check_ci_status", {"run_id": run_id})
 
     failed = step(env, "deploy_canary", {"run_id": run_id})
-    assert failed.reward is not None and 0.0 <= failed.reward <= 1.0
-    assert failed.metadata["debug_step_points"] < 0
+    assert failed.reward is not None and 0.0 < failed.reward < 1.0
 
 
 def test_pause_and_verify_recovery_flow():
@@ -138,8 +136,7 @@ def test_cannot_close_customer_incident_before_recovery():
         {"status": "resolved", "message": "premature close"},
     )
 
-    assert result.reward is not None and 0.0 <= result.reward <= 1.0
-    assert result.metadata["debug_step_points"] < 0
+    assert result.reward is not None and 0.0 < result.reward < 1.0
     assert result.last_tool_result.success is False
 
 
@@ -267,7 +264,7 @@ def test_http_reset_then_step_keeps_episode_state():
     assert payload["observation"]["step_number"] == 1
     assert payload["observation"]["last_tool_result"]["tool_name"] == "inspect_release_status"
     assert payload["reward"] == 0.175
-    assert payload["observation"]["metadata"]["debug_step_points"] == 3.5
+    assert payload["observation"]["metadata"]["step_score"] == 0.175
     assert "max_reward" not in payload["observation"]
 
 
@@ -308,7 +305,6 @@ def test_websocket_session_preserves_metadata_for_scripted_runner():
         step_payload = websocket.receive_json()["data"]
         assert step_payload["reward"] == 0.175
         assert step_payload["observation"]["metadata"]["step_score"] == 0.175
-        assert step_payload["observation"]["metadata"]["debug_step_points"] == 3.5
 
 
 def test_benchmark_report_supports_exports_and_comparison():

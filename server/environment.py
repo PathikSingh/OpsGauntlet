@@ -139,8 +139,6 @@ class OpsGauntletEnvironment(
         observation.metadata["auto_rollout_paused"] = self._world["auto_rollout_paused"]
         observation.metadata["recovery_verified"] = self._world["recovery_verified"]
         observation.metadata["step_score"] = grade.reward
-        observation.metadata["debug_step_points"] = grade.raw_points
-        observation.metadata["debug_total_points"] = round(self._raw_total_reward, 2)
         observation.metadata["episode_score"] = episode_score
         return observation
 

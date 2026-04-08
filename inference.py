@@ -493,7 +493,6 @@ def _execute_episode(
 
     outcome = observation.metadata.get("terminal_outcome", "unknown")
     score = _clamp_score(observation.metadata.get("episode_score", observation.reward))
-    total_points = round(float(observation.metadata.get("debug_total_points", 0.0)), 2)
     _emit(
         "END",
         {
@@ -511,7 +510,6 @@ def _execute_episode(
         "difficulty": observation.difficulty,
         "terminal_outcome": outcome,
         "score": score,
-        "total_points": total_points,
         "steps": observation.step_number,
     }
 
